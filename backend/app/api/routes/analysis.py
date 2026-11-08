@@ -1,6 +1,5 @@
 """Resume analysis endpoints: upload, score, suggest, retrieve."""
 
-import re
 from typing import Annotated
 
 from fastapi import APIRouter, File, Form, Header, HTTPException, UploadFile, status
@@ -9,6 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import CurrentUser, DbSession
 from app.core.config import get_settings
+from app.core.slug import slugify
 from app.models import Analysis, Company, Job, Resume, ResumeVersion, Role, Suggestion
 from app.schemas.analysis import (
     AnalysisOut,
@@ -28,15 +28,9 @@ from app.services.scoring import ScoreBreakdown, score_resume
 
 router = APIRouter(prefix="/api/analyses", tags=["analyses"])
 
-_SLUG_RE = re.compile(r"[^a-z0-9]+")
-
-
-def _slugify(value: str) -> str:
-    return _SLUG_RE.sub("-", value.strip().lower()).strip("-") or "unknown"
-
 
 def _get_or_create_company(db: Session, name: str, domain: str | None) -> Company:
-    slug = _slugify(name)
+    slug = slugify(name)
     company = db.scalar(select(Company).where(Company.slug == slug))
     if company is None:
         company = Company(name=name.strip(), slug=slug, domain=domain)
