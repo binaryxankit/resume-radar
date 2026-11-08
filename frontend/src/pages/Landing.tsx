@@ -1,4 +1,5 @@
 import type { ComponentType, SVGProps } from 'react'
+import { Link } from 'react-router-dom'
 
 import {
   ArrowRightIcon,
@@ -121,13 +122,13 @@ export function Landing() {
             </p>
 
             <div className="mt-8 flex flex-wrap items-center gap-3">
-              <a
-                href="#how"
+              <Link
+                to="/login"
                 className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-semibold text-primary-fg shadow-lg shadow-primary/20 transition hover:opacity-90"
               >
                 Analyze my resume
                 <ArrowRightIcon className="size-4" />
-              </a>
+              </Link>
               <a
                 href="#product"
                 className="inline-flex items-center gap-2 rounded-xl border border-border bg-surface px-5 py-3 text-sm font-semibold transition hover:bg-surface-2"
@@ -280,12 +281,12 @@ function SiteHeader() {
             <GithubIcon className="size-4.5" />
           </a>
           <ThemeToggle />
-          <a
-            href="#how"
+          <Link
+            to="/login"
             className="inline-flex items-center rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-fg transition hover:opacity-90"
           >
             Get started
-          </a>
+          </Link>
         </div>
       </div>
     </header>

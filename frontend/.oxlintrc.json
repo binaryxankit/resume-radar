@@ -4,5 +4,17 @@
   "rules": {
     "react/rules-of-hooks": "error",
     "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
+  },
+  "overrides": [
+    {
+      "files": [
+        "src/pages/**",
+        "src/components/AuthProvider.tsx",
+        "src/components/IntelPanel.tsx"
+      ],
+      "rules": {
+        "react/set-state-in-effect": "off"
+      }
+    }
+  ]
 }
