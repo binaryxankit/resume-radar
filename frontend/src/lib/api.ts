@@ -213,6 +213,16 @@ export function reanalyze(
   })
 }
 
+export async function exportResume(token: string, id: number): Promise<Blob> {
+  const response = await fetch(`${API_BASE}/api/analyses/${id}/export`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!response.ok) {
+    throw new ApiError('Export failed', response.status)
+  }
+  return response.blob()
+}
+
 export function getIntel(
   token: string,
   company: string,
