@@ -1,8 +1,18 @@
 """Resume analysis endpoints: upload, score, suggest, retrieve."""
 
+from pathlib import Path
 from typing import Annotated
 
-from fastapi import APIRouter, File, Form, Header, HTTPException, UploadFile, status
+from fastapi import (
+    APIRouter,
+    File,
+    Form,
+    Header,
+    HTTPException,
+    Response,
+    UploadFile,
+    status,
+)
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -16,6 +26,7 @@ from app.schemas.analysis import (
     ReanalyzeRequest,
     SuggestionOut,
 )
+from app.services.export import build_resume_docx, export_filename
 from app.services.llm.providers import LLMError, get_provider
 from app.services.llm.suggestions import (
     SuggestionDraft,
@@ -222,6 +233,25 @@ def get_analysis(
     analysis_id: int, current_user: CurrentUser, db: DbSession
 ) -> AnalysisOut:
     return _to_out(_load_owned_analysis(db, analysis_id, current_user.id))
+
+
+@router.get("/{analysis_id}/export")
+def export_analysis(
+    analysis_id: int, current_user: CurrentUser, db: DbSession
+) -> Response:
+    analysis = _load_owned_analysis(db, analysis_id, current_user.id)
+    version = analysis.resume_version
+    filename = export_filename(
+        slugify(Path(version.resume.filename).stem), version.version_no
+    )
+
+    return Response(
+        content=build_resume_docx(version.raw_text),
+        media_type=(
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        ),
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 @router.post("/{analysis_id}/reanalyze", response_model=AnalysisOut)
