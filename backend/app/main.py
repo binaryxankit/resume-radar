@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app import __version__
 from app.api.routes.analysis import router as analysis_router
 from app.api.routes.auth import router as auth_router
+from app.api.routes.intel import router as intel_router
 from app.core.config import get_settings
 
 settings = get_settings()
@@ -26,6 +27,7 @@ app.add_middleware(
 
 app.include_router(auth_router)
 app.include_router(analysis_router)
+app.include_router(intel_router)
 
 
 @app.get("/health", tags=["meta"])
