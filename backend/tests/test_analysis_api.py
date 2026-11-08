@@ -74,6 +74,7 @@ def test_create_analysis_returns_score_and_suggestions(client) -> None:
     assert {"kafka", "kubernetes", "postgresql"} <= set(body["missing_keywords"])
     assert body["suggestions"]
     assert body["sections"]["experience"]
+    assert "Jane Doe" in body["raw_text"]
 
 
 def test_create_analysis_requires_authentication(client) -> None:

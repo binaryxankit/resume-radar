@@ -38,6 +38,7 @@ class AnalysisOut(BaseModel):
     missing_keywords: list[str]
     sections: dict[str, list[str]]
     contact: dict[str, Any]
+    raw_text: str
     suggestions: list[SuggestionOut]
     resume_id: int
     resume_version_id: int
