@@ -119,6 +119,24 @@ def test_analysis_is_private_to_owner(client) -> None:
     assert response.status_code == 404
 
 
+def test_export_analysis_returns_docx(client) -> None:
+    headers = _auth_headers(client, "exporter@example.com")
+    created = _create_analysis(client, headers).json()
+
+    response = client.get(f"/api/analyses/{created['id']}/export", headers=headers)
+
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith(
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    )
+    assert "resume-v1.docx" in response.headers["content-disposition"]
+
+    document = Document(BytesIO(response.content))
+    paragraphs = [paragraph.text for paragraph in document.paragraphs]
+    assert "SUMMARY" in paragraphs
+    assert any("Built APIs" in text for text in paragraphs)
+
+
 def test_reanalyze_creates_new_version(client) -> None:
     headers = _auth_headers(client, "editor@example.com")
     created = _create_analysis(client, headers).json()
