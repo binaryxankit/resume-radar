@@ -1,0 +1,77 @@
+@import 'tailwindcss';
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  --background: #f6f7f9;
+  --surface: #ffffff;
+  --surface-2: #eef1f6;
+  --foreground: #0a0e17;
+  --muted: #59636f;
+  --border: #e2e6ed;
+  --primary: #4f46e5;
+  --primary-fg: #ffffff;
+  --accent: #0891b2;
+  --success: #16a34a;
+  --warning: #d97706;
+  --danger: #dc2626;
+  color-scheme: light;
+}
+
+.dark {
+  --background: #06080d;
+  --surface: #0c1017;
+  --surface-2: #121924;
+  --foreground: #eef1f6;
+  --muted: #97a1b0;
+  --border: #1b2331;
+  --primary: #818cf8;
+  --primary-fg: #0a0e17;
+  --accent: #22d3ee;
+  --success: #4ade80;
+  --warning: #fbbf24;
+  --danger: #f87171;
+  color-scheme: dark;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-border: var(--border);
+  --color-primary: var(--primary);
+  --color-primary-fg: var(--primary-fg);
+  --color-accent: var(--accent);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-danger: var(--danger);
+  --font-sans:
+    'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --radius-xl2: 1.25rem;
+}
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    min-height: 100svh;
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-sans);
+    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  ::selection {
+    background: color-mix(in oklab, var(--primary) 28%, transparent);
+  }
+}
