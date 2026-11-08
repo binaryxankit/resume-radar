@@ -24,6 +24,7 @@ not a generic template.
 - [Data model](#data-model)
 - [Repository layout](#repository-layout)
 - [Getting started](#getting-started)
+- [API](#api)
 - [Roadmap](#roadmap)
 - [Development workflow](#development-workflow)
 - [Privacy, ethics & legal](#privacy-ethics--legal)
@@ -51,9 +52,9 @@ description**, and by caching intel per company/role so repeat visits are instan
 2. **Target** a role by pasting a job description (or URL).
 3. **Score** the resume against the JD using ATS-style rules (parsing, keywords, structure, formatting).
 4. **Suggest** prioritized, evidence-backed improvements.
-5. **Rewrite inline** with an LLM — diff view, accept/reject per suggestion, versioned history.
-6. **Enrich** with public/qualitative intel: Reddit interview themes, public company/role signals,
-   and (manually verified or public-source) hiring contacts and comparable engineer profiles.
+5. **Rewrite inline** in the editor and re-score; every save becomes a new resume version.
+6. **Enrich** with public/qualitative intel: Reddit interview themes and public company/role
+   signals, cached per company and role.
 
 Each step is explainable. Nothing is a black box.
 
@@ -65,17 +66,18 @@ The MVP deliberately focuses on the first four steps plus a usable editor.
 
 **In scope**
 
-- [ ] User accounts (email + password, JWT).
-- [ ] Resume upload: PDF/DOCX → text extraction → section detection.
-- [ ] Job description input (paste text; URL import later).
-- [ ] ATS simulation: parseability, keyword coverage, section presence, formatting warnings.
-- [ ] Gap list: missing keywords/sections/quantification, ranked by impact.
-- [ ] LLM suggestions + inline rewrite with diff and per-suggestion accept/reject.
-- [ ] Resume version history (every save is a version; diffable).
-- [ ] Company/role intel cache: Reddit interview themes + public sources, stored per company/role.
-- [ ] Retrieval on return visit: same user, company, role → prior analyses loaded.
-- [ ] Themed React UI (dark/light), pixel-polished, responsive.
-- [ ] Export back to DOCX (PDF later).
+- [x] User accounts (email + password, JWT).
+- [x] Resume upload: PDF/DOCX → text extraction → section detection.
+- [x] Job description input (paste text; URL import later).
+- [x] ATS simulation: parseability, keyword coverage, section presence, formatting warnings.
+- [x] Gap list: missing keywords/sections/quantification, ranked by impact.
+- [x] LLM suggestions (rule-based fallback) plus an inline editor that re-scores and saves a version.
+- [ ] Diff view with per-suggestion accept/reject.
+- [x] Resume version history (every save is a version; diffable).
+- [x] Company/role intel cache: Reddit interview themes + public sources, stored per company/role.
+- [x] Retrieval on return visit: same user, company, role → prior analyses loaded.
+- [x] Themed React UI (dark/light), pixel-polished, responsive.
+- [x] Export back to DOCX (PDF later).
 
 **Out of scope (v1)**
 
@@ -146,17 +148,20 @@ flowchart LR
 
 | Layer | Choice | Notes |
 |-------|--------|-------|
-| Frontend | React + Vite + TypeScript | Themed (dark/light), accessible components |
-| Styling | Tailwind CSS + shadcn/ui | Pixel-precise, consistent design system |
-| Editor | TipTap | Inline editing + diff view |
+| Frontend | React 19 + Vite + TypeScript | Themed (dark/light), responsive |
+| Routing | React Router | Client-side routes for auth, workspace and analysis |
+| Styling | Tailwind CSS v4 | Semantic design tokens, dark variant |
 | Backend | FastAPI + Python 3.12 | Async, typed, OpenAPI docs |
 | ORM | SQLAlchemy 2 + Alembic | Migrations from day one |
-| DB | PostgreSQL + pgvector | Embeddings and similarity search |
-| Queue | Redis + RQ/Celery | Slow fetch/LLM jobs off the request path |
-| Auth | JWT (access tokens) | Hashing via passlib/argon2 |
-| Testing | pytest / vitest | Unit + integration |
-| Infra | Docker Compose | One-command local stack |
-| CI | GitHub Actions | Lint, typecheck, tests |
+| DB | PostgreSQL (pgvector image) / SQLite | Postgres in Docker, SQLite for quick local runs |
+| Queue | Redis | Reserved for slow fetch/LLM jobs |
+| Auth | JWT (access tokens) | PBKDF2 hashing via `hashlib` |
+| Parsing | pypdf + python-docx | Pure, testable extraction pipeline |
+| Export | python-docx | Heading/bullet-aware DOCX rendering |
+| Testing | pytest + TestClient | Unit and API integration tests |
+| Linting | ruff + oxlint | Backend and frontend static checks |
+| Infra | Docker Compose | Postgres, Redis, API and nginx-served SPA |
+| CI | GitHub Actions | Lint, tests and production build |
 
 ---
 
@@ -211,25 +216,27 @@ and `fetched_at`. Provenance is a first-class feature.
 resume-radar/
 ├── backend/
 │   ├── app/
-│   │   ├── api/            # routers (auth, resumes, jobs, analyses, intel)
-│   │   ├── core/           # config, security, db session
+│   │   ├── api/            # routers (auth, analyses, intel) + deps
+│   │   ├── core/           # config, security, db session, slugs
 │   │   ├── models/         # SQLAlchemy models
 │   │   ├── schemas/        # Pydantic schemas
-│   │   ├── services/       # parser, scorer, llm, intel
+│   │   ├── services/       # parsing, scoring, llm, intel, export
 │   │   └── main.py
+│   ├── alembic/            # migration environment + versions
 │   ├── tests/
-│   ├── alembic/
+│   ├── Dockerfile
 │   └── pyproject.toml
 ├── frontend/
 │   ├── src/
-│   │   ├── components/
-│   │   ├── pages/
-│   │   ├── features/       # upload, analysis, editor, intel
-│   │   ├── lib/
-│   │   └── styles/
-│   ├── index.html
+│   │   ├── components/     # shell, auth, score, suggestions, intel, editor
+│   │   ├── lib/            # API client, theme and auth contexts
+│   │   ├── pages/          # landing, auth, workspace, analysis
+│   │   ├── App.tsx
+│   │   └── index.css
+│   ├── Dockerfile
+│   ├── nginx.conf
 │   └── package.json
-├── docs/
+├── .github/workflows/ci.yml
 ├── docker-compose.yml
 ├── .env.example
 └── README.md
@@ -239,36 +246,97 @@ resume-radar/
 
 ## Getting started
 
-> Scaffolding lands incrementally. This section will be filled in as services come online.
+**Prerequisites:** Python 3.12+, Node 22+ (Docker optional).
 
 ```bash
 # clone
-git clone <repo-url> resume-radar && cd resume-radar
+git clone https://github.com/binaryxankit/resume-radar.git
+cd resume-radar
 
 # environment
-cp .env.example .env      # fill in keys
+cp .env.example .env      # fill in keys (LLM and Reddit are optional)
 
 # backend
-python -m venv .venv && .venv\Scripts\activate
-pip install -e backend
-uvicorn app.main:app --reload --app-dir backend
+python -m venv backend/.venv
+backend/.venv/Scripts/activate          # Windows
+# source backend/.venv/bin/activate     # macOS / Linux
+pip install -e "backend[dev]"
 
-# frontend
-cd frontend && npm install && npm run dev
+cd backend
+alembic upgrade head
+uvicorn app.main:app --reload
 ```
+
+The API runs at <http://127.0.0.1:8000> with OpenAPI docs at `/docs`.
+
+```bash
+# frontend (new terminal)
+cd frontend
+npm install
+npm run dev
+```
+
+The app runs at <http://localhost:5173>. Vite proxies `/api` to the backend, so no CORS
+configuration is needed in development.
+
+**Verify the backend**
+
+```bash
+cd backend
+ruff check app tests
+pytest -q
+```
+
+**Docker Compose (full stack)**
+
+```bash
+docker compose up --build
+```
+
+This starts Postgres (pgvector), Redis, the API (migrations run on boot) and the SPA behind
+nginx at <http://localhost:5173>.
+
+**Optional integrations**
+
+- `OPENAI_API_KEY` (or a per-request `X-LLM-API-Key` header from the UI) enables LLM rewrites.
+  Without a key, suggestions fall back to deterministic rules.
+- `REDDIT_CLIENT_ID` / `REDDIT_CLIENT_SECRET` enable company intel. Without them the intel panel
+  reports that the source is unavailable.
+
+---
+
+## API
+
+All analysis and intel routes require `Authorization: Bearer <token>`.
+
+| Method | Path | Purpose |
+|--------|------|---------|
+| `GET` | `/health` | Liveness probe |
+| `POST` | `/api/auth/register` | Create an account |
+| `POST` | `/api/auth/login` | Exchange credentials for a JWT |
+| `GET` | `/api/auth/me` | Current user profile |
+| `POST` | `/api/analyses` | Upload resume + job description (multipart) |
+| `GET` | `/api/analyses` | List the user's analyses |
+| `GET` | `/api/analyses/{id}` | Full analysis with score, sections and suggestions |
+| `POST` | `/api/analyses/{id}/reanalyze` | Re-score edited resume text, saving a new version |
+| `GET` | `/api/analyses/{id}/export` | Download the resume version as DOCX |
+| `GET` | `/api/intel` | Cached company/role intel (`company`, `role`, `refresh`) |
+
+`POST /api/analyses` accepts `file`, `job_description`, `company_name`, `role_title`, optional
+`role_level` / `source_url`, and an optional `X-LLM-API-Key` header.
 
 ---
 
 ## Roadmap
 
-| Phase | Deliverable |
-|-------|-------------|
-| 0 | Repo, CI, docs, Docker skeleton |
-| 1 | Auth + resume upload + parsing |
-| 2 | Job targeting + ATS simulation + gap list |
-| 3 | LLM suggestions + inline editor + version history |
-| 4 | Company/role intel aggregation + cache |
-| 5 | Export (DOCX), retrieval on return, polish |
+| Phase | Deliverable | Status |
+|-------|-------------|--------|
+| 0 | Repo, CI, docs, Docker skeleton | Done |
+| 1 | Auth + resume upload + parsing | Done |
+| 2 | Job targeting + ATS simulation + gap list | Done |
+| 3 | LLM suggestions + inline editor + version history | Done (diff view pending) |
+| 4 | Company/role intel aggregation + cache | Done |
+| 5 | DOCX export, retrieval on return, polish | Done |
 
 ---
 
@@ -279,19 +347,19 @@ cd frontend && npm install && npm run dev
 - `main` is always deployable.
 - One branch per feature: `feat/…`, `fix/…`, `chore/…`, `docs/…`, `test/…`.
 - Small commits, one logical change each, Conventional Commits style.
-- Open a PR → **squash merge** → delete branch → pull `main` → next branch.
+- Open a PR → **rebase merge** → delete branch → pull `main` → next branch.
 - No long-lived `develop` branch.
 
 ```
 main
-├── chore/scaffold
 ├── feat/backend-models
 ├── feat/resume-parser
 ├── feat/ats-scorer
 ├── feat/llm-suggestions
 ├── feat/company-intel
 ├── feat/frontend-shell
-└── feat/frontend-editor
+├── feat/frontend-app
+└── feat/export
 ```
 
 Commit message format:
