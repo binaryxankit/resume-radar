@@ -106,6 +106,7 @@ def _to_out(analysis: Analysis) -> AnalysisOut:
         missing_keywords=list(score.get("missing_keywords", [])),
         sections=stored.get("sections", {}),
         contact=stored.get("contact", {}),
+        raw_text=analysis.resume_version.raw_text,
         suggestions=[SuggestionOut.model_validate(item) for item in analysis.suggestions],
         resume_id=analysis.resume_version.resume_id,
         resume_version_id=analysis.resume_version_id,
