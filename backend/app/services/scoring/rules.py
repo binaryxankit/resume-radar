@@ -2,8 +2,11 @@
 
 import re
 from dataclasses import dataclass
+from typing import Literal
 
 from app.services.parsing.parser import ParsedResume
+
+Severity = Literal["critical", "warning", "info"]
 
 REQUIRED_SECTIONS = ("experience", "education", "skills")
 
@@ -14,7 +17,7 @@ _NUMBER_RE = re.compile(r"\d")
 @dataclass(frozen=True)
 class RuleFinding:
     category: str
-    severity: str
+    severity: Severity
     message: str
     evidence: str | None = None
 
