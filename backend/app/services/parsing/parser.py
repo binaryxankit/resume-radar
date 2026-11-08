@@ -27,17 +27,22 @@ class ParsedResume:
 
 def parse_resume(filename: str, data: bytes) -> ParsedResume:
     """Extract, normalize and structure a resume file."""
-    text = normalize_text(extract_text(filename, data))
-    if not text.strip():
+    return parse_resume_text(extract_text(filename, data), filename=filename)
+
+
+def parse_resume_text(text: str, filename: str = "resume") -> ParsedResume:
+    """Normalize and structure already-extracted resume text."""
+    normalized = normalize_text(text)
+    if not normalized.strip():
         raise ExtractionError("Resume contains no extractable text")
 
-    raw_sections = split_sections(text)
+    raw_sections = split_sections(normalized)
     sections = {key: tuple(lines) for key, lines in raw_sections.items()}
-    contact = extract_contact(text, raw_sections.get("header", []))
+    contact = extract_contact(normalized, raw_sections.get("header", []))
 
     return ParsedResume(
         filename=filename,
-        raw_text=text,
+        raw_text=normalized,
         sections=sections,
         contact=contact,
     )
