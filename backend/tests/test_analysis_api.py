@@ -101,12 +101,37 @@ def test_list_and_get_analysis(client) -> None:
 
     listing = client.get("/api/analyses", headers=headers)
     assert listing.status_code == 200
-    assert len(listing.json()) == 1
-    assert listing.json()[0]["id"] == created["id"]
+    history = listing.json()
+    assert history["total"] == 1
+    assert history["limit"] == 20
+    assert history["offset"] == 0
+    assert len(history["items"]) == 1
+    assert history["items"][0]["id"] == created["id"]
 
     detail = client.get(f"/api/analyses/{created['id']}", headers=headers)
     assert detail.status_code == 200
     assert detail.json()["ats_score"] == created["ats_score"]
+
+
+def test_list_analyses_paginates(client) -> None:
+    headers = _auth_headers(client, "pager@example.com")
+    created = [_create_analysis(client, headers).json() for _ in range(3)]
+
+    first = client.get("/api/analyses", headers=headers, params={"limit": 2})
+    body = first.json()
+    assert body["total"] == 3
+    assert body["limit"] == 2
+    assert body["offset"] == 0
+    assert len(body["items"]) == 2
+    assert body["items"][0]["id"] == created[2]["id"]
+
+    second = client.get(
+        "/api/analyses", headers=headers, params={"limit": 2, "offset": 2}
+    )
+    assert second.json()["items"][0]["id"] == created[0]["id"]
+
+    invalid = client.get("/api/analyses", headers=headers, params={"limit": 101})
+    assert invalid.status_code == 422
 
 
 def test_analysis_is_private_to_owner(client) -> None:
