@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
-import { Link, Navigate, useNavigate } from 'react-router-dom'
+import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom'
 
 import { AppShell } from '../components/AppShell'
 import { ApiError, createAnalysis, listAnalyses } from '../lib/api'
@@ -11,13 +11,14 @@ const PAGE_SIZE = 20
 export function WorkspacePage() {
   const { token, user, loading } = useAuth()
   const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
+  const query = searchParams.get('q')?.trim() ?? ''
 
   const [history, setHistory] = useState<AnalysisSummary[]>([])
   const [total, setTotal] = useState(0)
   const [loadingMore, setLoadingMore] = useState(false)
   const [historyError, setHistoryError] = useState<string | null>(null)
-  const [searchInput, setSearchInput] = useState('')
-  const [query, setQuery] = useState('')
+  const [searchInput, setSearchInput] = useState(query)
 
   const [file, setFile] = useState<File | null>(null)
   const [jobDescription, setJobDescription] = useState('')
@@ -47,6 +48,10 @@ export function WorkspacePage() {
     void refreshHistory()
   }, [refreshHistory])
 
+  useEffect(() => {
+    setSearchInput(query)
+  }, [query])
+
   async function loadMore() {
     if (!token || loadingMore) return
     setLoadingMore(true)
@@ -71,12 +76,13 @@ export function WorkspacePage() {
 
   function handleSearch(event: FormEvent) {
     event.preventDefault()
-    setQuery(searchInput.trim())
+    const next = searchInput.trim()
+    setSearchParams(next ? { q: next } : {})
   }
 
   function clearSearch() {
     setSearchInput('')
-    setQuery('')
+    setSearchParams({})
   }
 
   async function handleSubmit(event: FormEvent) {
