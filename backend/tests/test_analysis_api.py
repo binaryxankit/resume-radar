@@ -40,14 +40,20 @@ def _auth_headers(client, email: str) -> dict[str, str]:
     return {"Authorization": f"Bearer {token}"}
 
 
-def _create_analysis(client, headers: dict[str, str], filename: str = "resume.docx"):
+def _create_analysis(
+    client,
+    headers: dict[str, str],
+    filename: str = "resume.docx",
+    company: str = "Stripe",
+    role: str = "Senior Backend Engineer",
+):
     return client.post(
         "/api/analyses",
         headers=headers,
         data={
             "job_description": JOB,
-            "company_name": "Stripe",
-            "role_title": "Senior Backend Engineer",
+            "company_name": company,
+            "role_title": role,
             "role_level": "senior",
         },
         files={
@@ -132,6 +138,36 @@ def test_list_analyses_paginates(client) -> None:
 
     invalid = client.get("/api/analyses", headers=headers, params={"limit": 101})
     assert invalid.status_code == 422
+
+
+def test_search_analysis_history(client) -> None:
+    headers = _auth_headers(client, "searcher@example.com")
+    stripe = _create_analysis(
+        client, headers, company="Stripe", role="Backend Engineer"
+    ).json()
+    _create_analysis(client, headers, company="Linear", role="Design Engineer")
+
+    by_company = client.get("/api/analyses", headers=headers, params={"q": " STRIPE "})
+    body = by_company.json()
+    assert body["total"] == 1
+    assert body["items"][0]["id"] == stripe["id"]
+
+    by_role = client.get("/api/analyses", headers=headers, params={"q": "design"})
+    assert by_role.json()["total"] == 1
+
+    missing = client.get("/api/analyses", headers=headers, params={"q": "netflix"})
+    assert missing.json()["total"] == 0
+    assert missing.json()["items"] == []
+
+
+def test_search_history_is_private_to_owner(client) -> None:
+    owner_headers = _auth_headers(client, "search-owner@example.com")
+    _create_analysis(client, owner_headers, company="Stripe")
+
+    other_headers = _auth_headers(client, "search-other@example.com")
+    response = client.get("/api/analyses", headers=other_headers, params={"q": "stripe"})
+
+    assert response.json()["total"] == 0
 
 
 def test_analysis_is_private_to_owner(client) -> None:
