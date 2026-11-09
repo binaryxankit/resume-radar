@@ -14,7 +14,7 @@ from fastapi import (
     UploadFile,
     status,
 )
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
 from app.api.deps import CurrentUser, DbSession
@@ -223,10 +223,27 @@ def _summarise(analysis: Analysis) -> AnalysisSummary:
 def list_analyses(
     current_user: CurrentUser,
     db: DbSession,
+    q: Annotated[str | None, Query(max_length=100)] = None,
     limit: Annotated[int, Query(ge=1, le=100)] = 20,
     offset: Annotated[int, Query(ge=0)] = 0,
 ) -> AnalysisHistory:
     base = select(Analysis).where(Analysis.user_id == current_user.id)
+
+    if q and q.strip():
+        term = f"%{q.strip().lower()}%"
+        base = (
+            base.join(Analysis.job)
+            .join(Job.company)
+            .join(Job.role)
+            .where(
+                or_(
+                    func.lower(Company.name).like(term),
+                    func.lower(Role.title).like(term),
+                    func.lower(Job.title).like(term),
+                )
+            )
+        )
+
     total = db.scalar(select(func.count()).select_from(base.subquery())) or 0
 
     analyses = db.scalars(
