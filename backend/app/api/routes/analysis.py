@@ -9,11 +9,12 @@ from fastapi import (
     Form,
     Header,
     HTTPException,
+    Query,
     Response,
     UploadFile,
     status,
 )
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.api.deps import CurrentUser, DbSession
@@ -21,6 +22,7 @@ from app.core.config import get_settings
 from app.core.slug import slugify
 from app.models import Analysis, Company, Job, Resume, ResumeVersion, Role, Suggestion
 from app.schemas.analysis import (
+    AnalysisHistory,
     AnalysisOut,
     AnalysisSummary,
     ReanalyzeRequest,
@@ -206,26 +208,39 @@ async def create_analysis(
     return _to_out(analysis)
 
 
-@router.get("", response_model=list[AnalysisSummary])
-def list_analyses(current_user: CurrentUser, db: DbSession) -> list[AnalysisSummary]:
-    statement = (
-        select(Analysis)
-        .where(Analysis.user_id == current_user.id)
-        .order_by(Analysis.created_at.desc(), Analysis.id.desc())
+def _summarise(analysis: Analysis) -> AnalysisSummary:
+    return AnalysisSummary(
+        id=analysis.id,
+        company=analysis.job.company.name,
+        role=analysis.job.role.title,
+        job_title=analysis.job.title,
+        ats_score=analysis.ats_score,
+        created_at=analysis.created_at,
     )
-    analyses = db.scalars(statement).all()
 
-    return [
-        AnalysisSummary(
-            id=item.id,
-            company=item.job.company.name,
-            role=item.job.role.title,
-            job_title=item.job.title,
-            ats_score=item.ats_score,
-            created_at=item.created_at,
-        )
-        for item in analyses
-    ]
+
+@router.get("", response_model=AnalysisHistory)
+def list_analyses(
+    current_user: CurrentUser,
+    db: DbSession,
+    limit: Annotated[int, Query(ge=1, le=100)] = 20,
+    offset: Annotated[int, Query(ge=0)] = 0,
+) -> AnalysisHistory:
+    base = select(Analysis).where(Analysis.user_id == current_user.id)
+    total = db.scalar(select(func.count()).select_from(base.subquery())) or 0
+
+    analyses = db.scalars(
+        base.order_by(Analysis.created_at.desc(), Analysis.id.desc())
+        .offset(offset)
+        .limit(limit)
+    ).all()
+
+    return AnalysisHistory(
+        items=[_summarise(item) for item in analyses],
+        total=total,
+        limit=limit,
+        offset=offset,
+    )
 
 
 @router.get("/{analysis_id}", response_model=AnalysisOut)

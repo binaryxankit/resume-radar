@@ -27,6 +27,13 @@ class AnalysisSummary(BaseModel):
     created_at: datetime
 
 
+class AnalysisHistory(BaseModel):
+    items: list[AnalysisSummary]
+    total: int
+    limit: int
+    offset: int
+
+
 class AnalysisOut(BaseModel):
     id: int
     company: str
