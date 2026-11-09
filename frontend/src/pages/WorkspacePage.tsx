@@ -16,6 +16,8 @@ export function WorkspacePage() {
   const [total, setTotal] = useState(0)
   const [loadingMore, setLoadingMore] = useState(false)
   const [historyError, setHistoryError] = useState<string | null>(null)
+  const [searchInput, setSearchInput] = useState('')
+  const [query, setQuery] = useState('')
 
   const [file, setFile] = useState<File | null>(null)
   const [jobDescription, setJobDescription] = useState('')
@@ -29,14 +31,17 @@ export function WorkspacePage() {
   const refreshHistory = useCallback(async () => {
     if (!token) return
     try {
-      const page = await listAnalyses(token, { limit: PAGE_SIZE })
+      const page = await listAnalyses(token, {
+        q: query || undefined,
+        limit: PAGE_SIZE,
+      })
       setHistory(page.items)
       setTotal(page.total)
       setHistoryError(null)
     } catch {
       setHistoryError('Could not load your analyses.')
     }
-  }, [token])
+  }, [token, query])
 
   useEffect(() => {
     void refreshHistory()
@@ -47,6 +52,7 @@ export function WorkspacePage() {
     setLoadingMore(true)
     try {
       const page = await listAnalyses(token, {
+        q: query || undefined,
         limit: PAGE_SIZE,
         offset: history.length,
       })
@@ -61,6 +67,16 @@ export function WorkspacePage() {
 
   if (!loading && !token) {
     return <Navigate to="/login" replace />
+  }
+
+  function handleSearch(event: FormEvent) {
+    event.preventDefault()
+    setQuery(searchInput.trim())
+  }
+
+  function clearSearch() {
+    setSearchInput('')
+    setQuery('')
   }
 
   async function handleSubmit(event: FormEvent) {
@@ -204,13 +220,40 @@ export function WorkspacePage() {
             Saved per company and role so you can pick up where you left off.
           </p>
 
+          <form onSubmit={handleSearch} className="mt-4 flex gap-2">
+            <input
+              type="search"
+              value={searchInput}
+              onChange={(event) => setSearchInput(event.target.value)}
+              placeholder="Search company, role or title"
+              className="w-full rounded-xl border border-border bg-surface px-3.5 py-2 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
+            />
+            <button
+              type="submit"
+              className="shrink-0 rounded-xl border border-border px-3 py-2 text-sm font-medium transition hover:bg-surface-2"
+            >
+              Search
+            </button>
+            {query ? (
+              <button
+                type="button"
+                onClick={clearSearch}
+                className="shrink-0 rounded-xl px-2 py-2 text-sm text-muted transition hover:text-foreground"
+              >
+                Clear
+              </button>
+            ) : null}
+          </form>
+
           {historyError ? (
             <p className="mt-4 text-sm text-danger">{historyError}</p>
           ) : null}
 
           {history.length === 0 ? (
             <p className="mt-6 rounded-xl border border-dashed border-border px-4 py-8 text-center text-sm text-muted">
-              No analyses yet. Run your first one on the left.
+              {query
+                ? `No analyses match “${query}”.`
+                : 'No analyses yet. Run your first one on the left.'}
             </p>
           ) : (
             <ul className="mt-4 space-y-2">
