@@ -80,6 +80,19 @@ export type AnalysisSummary = {
   created_at: string
 }
 
+export type AnalysisHistory = {
+  items: AnalysisSummary[]
+  total: number
+  limit: number
+  offset: number
+}
+
+export type HistoryQuery = {
+  q?: string
+  limit?: number
+  offset?: number
+}
+
 export type Insight = {
   id: number
   kind: string
@@ -191,8 +204,18 @@ export function createAnalysis(
   })
 }
 
-export function listAnalyses(token: string): Promise<AnalysisSummary[]> {
-  return request<AnalysisSummary[]>('/api/analyses', { token })
+export function listAnalyses(
+  token: string,
+  query: HistoryQuery = {},
+): Promise<AnalysisHistory> {
+  const params = new URLSearchParams()
+  if (query.q) params.set('q', query.q)
+  if (query.limit) params.set('limit', String(query.limit))
+  if (query.offset) params.set('offset', String(query.offset))
+  const search = params.toString()
+  return request<AnalysisHistory>(`/api/analyses${search ? `?${search}` : ''}`, {
+    token,
+  })
 }
 
 export function getAnalysis(token: string, id: number): Promise<Analysis> {
