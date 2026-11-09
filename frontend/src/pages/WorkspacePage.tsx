@@ -6,11 +6,15 @@ import { ApiError, createAnalysis, listAnalyses } from '../lib/api'
 import type { AnalysisSummary } from '../lib/api'
 import { useAuth } from '../lib/auth-context'
 
+const PAGE_SIZE = 20
+
 export function WorkspacePage() {
   const { token, user, loading } = useAuth()
   const navigate = useNavigate()
 
   const [history, setHistory] = useState<AnalysisSummary[]>([])
+  const [total, setTotal] = useState(0)
+  const [loadingMore, setLoadingMore] = useState(false)
   const [historyError, setHistoryError] = useState<string | null>(null)
 
   const [file, setFile] = useState<File | null>(null)
@@ -25,7 +29,9 @@ export function WorkspacePage() {
   const refreshHistory = useCallback(async () => {
     if (!token) return
     try {
-      setHistory(await listAnalyses(token))
+      const page = await listAnalyses(token, { limit: PAGE_SIZE })
+      setHistory(page.items)
+      setTotal(page.total)
       setHistoryError(null)
     } catch {
       setHistoryError('Could not load your analyses.')
@@ -35,6 +41,23 @@ export function WorkspacePage() {
   useEffect(() => {
     void refreshHistory()
   }, [refreshHistory])
+
+  async function loadMore() {
+    if (!token || loadingMore) return
+    setLoadingMore(true)
+    try {
+      const page = await listAnalyses(token, {
+        limit: PAGE_SIZE,
+        offset: history.length,
+      })
+      setHistory((current) => [...current, ...page.items])
+      setTotal(page.total)
+    } catch {
+      setHistoryError('Could not load your analyses.')
+    } finally {
+      setLoadingMore(false)
+    }
+  }
 
   if (!loading && !token) {
     return <Navigate to="/login" replace />
@@ -169,7 +192,14 @@ export function WorkspacePage() {
         </section>
 
         <section className="rounded-2xl border border-border bg-surface p-6">
-          <h2 className="text-lg font-semibold">Recent analyses</h2>
+          <div className="flex items-baseline justify-between gap-3">
+            <h2 className="text-lg font-semibold">Recent analyses</h2>
+            {total > 0 ? (
+              <span className="text-xs text-muted">
+                {history.length} of {total}
+              </span>
+            ) : null}
+          </div>
           <p className="mt-1 text-sm text-muted">
             Saved per company and role so you can pick up where you left off.
           </p>
@@ -204,6 +234,17 @@ export function WorkspacePage() {
               ))}
             </ul>
           )}
+
+          {history.length < total ? (
+            <button
+              type="button"
+              onClick={() => void loadMore()}
+              disabled={loadingMore}
+              className="mt-4 w-full rounded-xl border border-border px-4 py-2 text-sm font-medium transition hover:bg-surface-2 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {loadingMore ? 'Loading…' : 'Load more'}
+            </button>
+          ) : null}
         </section>
       </div>
     </AppShell>
