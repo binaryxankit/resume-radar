@@ -49,8 +49,19 @@ export function WorkspacePage() {
   }, [refreshHistory])
 
   useEffect(() => {
-    setSearchInput(query)
+    setSearchInput((current) => (current.trim() === query ? current : query))
   }, [query])
+
+  useEffect(() => {
+    const next = searchInput.trim()
+    if (next === query) return
+
+    const timer = setTimeout(() => {
+      setSearchParams(next ? { q: next } : {}, { replace: true })
+    }, 350)
+
+    return () => clearTimeout(timer)
+  }, [searchInput, query, setSearchParams])
 
   async function loadMore() {
     if (!token || loadingMore) return
