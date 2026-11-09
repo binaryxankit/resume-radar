@@ -316,7 +316,7 @@ All analysis and intel routes require `Authorization: Bearer <token>`.
 | `POST` | `/api/auth/login` | Exchange credentials for a JWT |
 | `GET` | `/api/auth/me` | Current user profile |
 | `POST` | `/api/analyses` | Upload resume + job description (multipart) |
-| `GET` | `/api/analyses` | List the user's analyses |
+| `GET` | `/api/analyses` | Paginated history (`q`, `limit`, `offset`) |
 | `GET` | `/api/analyses/{id}` | Full analysis with score, sections and suggestions |
 | `POST` | `/api/analyses/{id}/reanalyze` | Re-score edited resume text, saving a new version |
 | `GET` | `/api/analyses/{id}/export` | Download the resume version as DOCX |
@@ -324,6 +324,10 @@ All analysis and intel routes require `Authorization: Bearer <token>`.
 
 `POST /api/analyses` accepts `file`, `job_description`, `company_name`, `role_title`, optional
 `role_level` / `source_url`, and an optional `X-LLM-API-Key` header.
+
+`GET /api/analyses` returns `{ items, total, limit, offset }`. `q` matches company, role or job
+title case-insensitively, `limit` is 1–100 (default 20) and `offset` defaults to 0. The workspace
+search is debounced and stored in the URL (`/app?q=…`), so reloads and shared links keep it.
 
 ---
 
